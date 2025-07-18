@@ -1,19 +1,26 @@
 from django.shortcuts import render, get_object_or_404
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
+from taggit.models import Tag
 
 from .forms import CommentForm
 from .models import Post
 
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     posts_list = Post.published.all()
+
+    tag = None
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        posts_list = posts_list.filter(tags__in=[tag])
     paginator = Paginator(posts_list, 3)
     page_number = request.GET.get("page", 1)
     posts = paginator.get_page(page_number)
 
     context = {
-        "posts": posts
+        "posts": posts,
+        "tag": tag,
     }
     return render(request, "blog/post/list.html", context)
 
