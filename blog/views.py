@@ -1,5 +1,8 @@
 from django.shortcuts import render, get_object_or_404
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
+
+from .forms import CommentForm
 from .models import Post
 
 
@@ -8,7 +11,11 @@ def post_list(request):
     paginator = Paginator(posts_list, 3)
     page_number = request.GET.get("page", 1)
     posts = paginator.get_page(page_number)
-    return render(request, "blog/post/list.html", {"posts": posts})
+
+    context = {
+        "posts": posts
+    }
+    return render(request, "blog/post/list.html", context)
 
 
 def post_detail(request, year, month, day, post):
@@ -19,4 +26,30 @@ def post_detail(request, year, month, day, post):
                              publish__month=month,
                              publish__day=day,
                              )
-    return render(request, "blog/post/detail.html", {"post": post})
+    comments = post.comments.filter(active=True)
+    form = CommentForm()
+
+    context = {
+        "post": post,
+        "comments": comments,
+        "form": form,
+    }
+    return render(request, "blog/post/detail.html", context)
+
+
+@require_POST
+def post_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
+    comment = None
+    form = CommentForm(data=request.POST)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.post = post
+        comment.save()
+
+    context = {
+        "post": post,
+        "form": form,
+        "comment": comment
+    }
+    return render(request, "blog/post/comment.html", context)
